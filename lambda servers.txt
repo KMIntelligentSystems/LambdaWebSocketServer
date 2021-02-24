@@ -1,0 +1,71 @@
+1. 
+AWSServerless2::WebsockStack
+
+ public async Task<APIGatewayProxyResponse> OnConnectHandler(APIGatewayProxyRequest request, ILambdaContext context)
+
+PUTS CONNECTION ID IN Dyamo
+Req = Amazon.Lambda.APIGatewayEvents.APIGatewayProxyRequest+ProxyRequestContext
+
+ConnectionId: aCxTddbuoAMCILQ=
+
+
+websockstack-SendMessageFunction::SendMessageHandler
+AWAITS SNS NOTIFICATION FROM SQS TRIGGERED
+ public async Task<APIGatewayProxyResponse> SendMessageHandler(MessageType request, ILambdaContext context)
+  await GetGraphQLResponse();
+ private async Task<bool> GetGraphQLResponse()
+        {
+            
+            ICoreAmazonSQS sqs = new AmazonSQSClient();
+            var client = new AmazonSimpleNotificationServiceClient();
+            var res = await client.SubscribeQueueAsync("arn:aws:sns:us-east-1:280449388741:SimpleSNS", sqs, "https://sqs.us-east-1.amazonaws.com/280449388741/GraphQLDataQueue");
+            Console.WriteLine($"Test SNS {res}");
+            
+            return true;
+        }
+Test SNS arn:aws:sns:us-east-1:280449388741:SimpleSNS:9dd90444-bcdc-4a0d-a6cb-89bbdb526da2
+
+
+2.
+Data service
+
+MessageType subscription MessageAdded {message {from {id displayName} content sentAt}}
+
+In Graphql server mmmm
+
+
+Response: 
+{
+    "Subscription": "subscription MessageAdded {message {from {id displayName} content sentAt}}",
+    "SchemaCode": "type Query { message: Message }\r\n            type MessageFrom { id: String displayName: String }\r\n            type Message { content: String sentAt: String messageFrom: MessageFrom }",
+    "result": "{\"payload\":{\"data\":{\"message\":{\"content\":\"Content Test\",\"messageFrom\":{\"id\":\"1\",\"displayName\":\"test\"},\"sentAt\":\"2021-01-24T02:14:02.469Z\"}}},\"type\":\"data\",\"id\":\"1\"}"
+}
+
+
+3.
+HOTCHOC
+
+GraphQLSentMessageFunction::SentGraphQLMessageHandler
+public MessageType SentGraphQLMessageHandler(MessageType state, ILambdaContext context)
+REDIS GET ALL **Message**
+Move Next 
+{
+    "payload": {
+        "data": {
+            "message": {
+                "content": "Content Test",
+                "messageFrom": {
+                    "id": "1",
+                    "displayName": "test"
+                },
+                "sentAt": "2021-01-24T02:14:02.469Z"
+            }
+        }
+    },
+    "type": "data",
+    "id": "1"
+}
+STATE.SCHEMACODE
+State MessageType type Query { message: Message }
+type MessageFrom { id: String displayName: String }
+type Message { content: String sentAt: String messageFrom: MessageFrom }

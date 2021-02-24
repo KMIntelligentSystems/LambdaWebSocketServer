@@ -180,14 +180,14 @@ namespace AWSServerless2
         }
         bool hasResult = false;
         string result;
-        public async Task<APIGatewayProxyResponse> SendMessageHandler(MessageType request, ILambdaContext context)
+        public  async Task<object> SendMessageHandler(MessageType request, ILambdaContext context)
         {
            
 
             try
             {
               //  await Task.Delay(100);
-                await GetGraphQLResponse();
+            //    await GetGraphQLResponse();
 
                 DefaultLambdaJsonSerializer s = new DefaultLambdaJsonSerializer();
                 
@@ -211,9 +211,9 @@ namespace AWSServerless2
                
                 var bytes = new byte[stream.Length];
                 stream.Seek(0, SeekOrigin.Begin);
-                await stream.ReadAsync(bytes, 0, bytes.Length);
+               // await stream..ReadAsync(bytes, 0, bytes.Length);
                 var resp = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
-
+                Console.WriteLine($"RESP {resp}");
                 var scanRequest = new ScanRequest
                 {
                     TableName = "LambdaDb",
@@ -268,34 +268,39 @@ namespace AWSServerless2
                     }
                 // }
 
+                object resp_ = null;
                 if (request != null && request.result != null && request.result.Contains("payload"))
                 {
                     var data = request.result.Replace(":", " = ");
                     data = data.Replace(@"""", @""); 
                     s.Serialize(data, stream);
-                    return new APIGatewayProxyResponse
+                    resp_ = JsonConvert.DeserializeObject(resp);
+                    Console.WriteLine($"RESP___{resp_}");
+                //    return resp_;
+                  /*  return new APIGatewayProxyResponse
                     {
                         StatusCode = (int)HttpStatusCode.OK,
                         Body = resp
-                    };
+                    };*/
                 }
-            
-                
-                return new APIGatewayProxyResponse
-                {
-                    StatusCode = (int)HttpStatusCode.OK,
-                    Body = resp
-                };
+
+                return JsonConvert.DeserializeObject(resp);
+                /* return new APIGatewayProxyResponse
+                 {
+                     StatusCode = (int)HttpStatusCode.OK,
+                     Body = resp
+                 };*/
             }
             catch (Exception e)
             {
                 context.Logger.LogLine("Error disconnecting: " + e.Message);
                 context.Logger.LogLine(e.StackTrace);
-                return new APIGatewayProxyResponse
+               return e.Message;
+             /*   return new APIGatewayProxyResponse
                 {
                     StatusCode = (int)HttpStatusCode.InternalServerError,
                     Body = $"Failed to send message: {e.Message}"
-                };
+                };*/
             }
         }
 
@@ -336,27 +341,28 @@ namespace AWSServerless2
             }
         }
         
-        public async Task<APIGatewayProxyResponse> Get(APIGatewayProxyRequest request, ILambdaContext context)
+        public async Task<object> Get(object request, ILambdaContext context)
         {
             var sqsRequest = new SendMessageRequest
             {
                 QueueUrl = "https://sqs.us-east-1.amazonaws.com/280449388741/WorflowQueue", 
-                MessageBody = request.Body
+                MessageBody = JsonConvert.SerializeObject(request)
             };
         
             await SQSClient.SendMessageAsync(sqsRequest);
-            context.Logger.LogLine($"Get Request { request.Body}");
-            var obj = new { payload = new { data = new { message = new { content = "Test", sentAt = DateTime.Now.ToString(), messageFrom = new { id = "1", displayName = "Test" } } } }, type = "data", id = "1" };
+            context.Logger.LogLine($"Get Request { request}");
+            var obj = new { payload = new { data = new { message = new { content = "GET", sentAt = DateTime.Now.ToString(), messageFrom = new { id = "1", displayName = "Test" } } } }, type = "data", id = "1" };
             var resp = JsonConvert.SerializeObject(obj);
 
             Console.WriteLine($"RESPONSE TEXT {resp}");
-            var response = new APIGatewayProxyResponse
-            {
-                StatusCode = (int)HttpStatusCode.OK,
-                Body = resp,
-                Headers = new Dictionary<string, string> { { "Content-Type", "text/plain" } }
-            };
-            return response;
+            /*   var response = new APIGatewayProxyResponse
+               {
+                   StatusCode = (int)HttpStatusCode.OK,
+                   Body = resp,
+                   Headers = new Dictionary<string, string> { { "Content-Type", "text/plain" } }
+               };
+               return response;*/
+            return JsonConvert.DeserializeObject(resp);
         }
        // [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.Json.JsonSerializer))]
         public async Task<MessageType> SendGraphQLResponse(MessageType request, ILambdaContext context)
